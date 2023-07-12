@@ -3,9 +3,13 @@ from tqdm import tqdm
 import datetime
 import sys
 import os
+import platform
 
 def search_data(date):
     url = 'http://data.ex.co.kr/portal/fdwn/search'
+    user_agent = "Mozilla/5.0 ({}; {}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36".format(
+        platform.system(), platform.release()
+    )
     headers = {
         'Accept': 'application/json, text/javascript, */*; q=0.01',
         'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -14,7 +18,7 @@ def search_data(date):
         'Cookie': '__smElapsedTime=5; __smDBTime=0; __smEstamp=20230712132536630; __smGlobalId=2b65d37b0b301d4801894858f476; __smVisitorID=5jQS2fFfPWV; JSESSIONID=IX4yWyS2r2UahrwO180pVkDnPFwF1UpXwk9M9zQR211LZUdpxcDOp1TKeE1M9bHS.tclapwas2_servlet_openoasis',
         'Origin': 'http://data.ex.co.kr',
         'Referer': 'http://data.ex.co.kr/portal/fdwn/view?type=VDS&num=16&requestfrom=dataset',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        'User-Agent': user_agent,
         'X-Requested-With': 'XMLHttpRequest'
     }
     data = {
@@ -39,7 +43,9 @@ def search_data(date):
         return False
 
 def download_data(date):
-    url = 'http://data.ex.co.kr/portal/fdwn/log'
+    user_agent = "Mozilla/5.0 ({}; {}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36".format(
+        platform.system(), platform.release()
+    )
     headers = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -50,7 +56,7 @@ def download_data(date):
         'Origin': 'http://data.ex.co.kr',
         'Referer': 'http://data.ex.co.kr/portal/fdwn/view?type=VDS&num=16&requestfrom=dataset',
         'Upgrade-Insecure-Requests': '1',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36'
+        'User-Agent': user_agent
     }
     data = {
         'dataSupplyDate': date,
@@ -66,20 +72,29 @@ def download_data(date):
         'outFileName': 'VDS_VDS%EC%9B%90%EC%8B%9C%EC%9E%90%EB%A3%8C_1%EC%9D%BC_1%EC%9D%BC_{}.zip'.format(date)
     }
 
+    url = 'http://data.ex.co.kr/portal/fdwn/log'
     response = requests.post(url, headers=headers, data=data, stream=True)
+
     if response.status_code == 200:
-        file_size = int(response.headers.get('Content-Length', 0))
-        file_name = '{}.zip'.format(date)
-        with open(file_name, 'wb') as file:
-            with tqdm(total=file_size, unit='B', unit_scale=True, desc='{} 다운로드 중'.format(date)) as progress:
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        file.write(chunk)
-                        progress.update(len(chunk))
+        total_size = int(response.headers.get('Content-Length', 0))
+        block_size = 1024  # 1 KB
+        progress_bar = tqdm(total=total_size, unit='B', unit_scale=True)
+
+        with open('temp.zip', 'wb') as file:
+            for chunk in response.iter_content(chunk_size=block_size):
+                progress_bar.update(len(chunk))
+                file.write(chunk)
+
+        progress_bar.close()
+
+        # Rename the file
+        os.rename('temp.zip', '{}.zip'.format(date))
+
         print("Download completed.")
-        os.rename(file_name, '{}.zip'.format(date))
+        return True
     else:
         print("Download failed.")
+        return False
 
 def main(date):
     # 현재 월의 첫 번째 날짜 구하기
