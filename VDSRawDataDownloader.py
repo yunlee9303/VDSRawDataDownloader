@@ -111,7 +111,6 @@ def main(date):
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print("Usage: python crawl2.py <year_month>")
         sys.exit(1)
 
     date = sys.argv[1]
