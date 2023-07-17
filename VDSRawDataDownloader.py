@@ -77,7 +77,7 @@ def download_data(date):
 
     if response.status_code == 200:
         total_size = int(response.headers.get('Content-Length', 0))
-        block_size = 1024  # 1 KB
+        block_size = 1024  
         progress_bar = tqdm(total=total_size, unit='B', unit_scale=True)
 
         with open('temp.zip', 'wb') as file:
@@ -96,22 +96,30 @@ def download_data(date):
         print("Download failed.")
         return False
 
-def main(date):
-    # 현재 월의 첫 번째 날짜 구하기
-    current_date = datetime.datetime.strptime(date + '01', '%Y%m%d').date()
-    # 현재 월의 마지막 날짜 구하기
-    next_month = current_date.replace(day=28) + datetime.timedelta(days=4)
-    last_day = next_month - datetime.timedelta(days=next_month.day)
+def main(start_date, end_date=None):
+    # Case 1:  searching for all days in a month
+    if len(start_date) == 6:
+        start_date += '01'
+    current_date = datetime.datetime.strptime(start_date, '%Y%m%d').date()
 
-    while current_date <= last_day:
+    # Case 2: Range Serach, end_date = None 이라면 모든 일 검색
+    if end_date:
+        last_date = datetime.datetime.strptime(end_date, '%Y%m%d').date()
+    else:
+        last_date = current_date.replace(day=1) + datetime.timedelta(days=32)
+        last_date = last_date - datetime.timedelta(days=last_date.day)
+
+    while current_date <= last_date:
         current_date_str = current_date.strftime('%Y%m%d')
         if search_data(current_date_str):
             download_data(current_date_str)
         current_date += datetime.timedelta(days=1)
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
         sys.exit(1)
 
-    date = sys.argv[1]
-    main(date)
+    start_date = sys.argv[1]
+    end_date = sys.argv[2] if len(sys.argv) == 3 else None
+
+    main(start_date, end_date)
