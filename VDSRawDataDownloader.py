@@ -4,6 +4,7 @@ import datetime
 import sys
 import os
 import platform
+from PyQt5.QtWidgets import QApplication, QFileDialog
 
 def search_data(date):
     url = 'http://data.ex.co.kr/portal/fdwn/search'
@@ -42,7 +43,7 @@ def search_data(date):
         print("Search request failed.")
         return False
 
-def download_data(date):
+def download_data(date, download_folder):
     user_agent = "Mozilla/5.0 ({}; {}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36".format(
         platform.system(), platform.release()
     )
@@ -77,10 +78,10 @@ def download_data(date):
 
     if response.status_code == 200:
         total_size = int(response.headers.get('Content-Length', 0))
-        block_size = 1024  
+        block_size = 1024  # 1 KB
         progress_bar = tqdm(total=total_size, unit='B', unit_scale=True)
 
-        with open('temp.zip', 'wb') as file:
+        with open(os.path.join(download_folder, 'temp.zip'), 'wb') as file:
             for chunk in response.iter_content(chunk_size=block_size):
                 progress_bar.update(len(chunk))
                 file.write(chunk)
@@ -88,7 +89,8 @@ def download_data(date):
         progress_bar.close()
 
         # Rename the file
-        os.rename('temp.zip', '{}.zip'.format(date))
+        file_path = os.path.join(download_folder, '{}.zip'.format(date))
+        os.rename(os.path.join(download_folder, 'temp.zip'), file_path)
 
         print("Download completed.")
         return True
@@ -109,11 +111,18 @@ def main(start_date, end_date=None):
         last_date = current_date.replace(day=1) + datetime.timedelta(days=32)
         last_date = last_date - datetime.timedelta(days=last_date.day)
 
+    # File path 다이얼로그
+    app = QApplication(sys.argv)
+    download_folder = QFileDialog.getExistingDirectory(
+        None, "저장위치", options=QFileDialog.ShowDirsOnly)
+
     while current_date <= last_date:
         current_date_str = current_date.strftime('%Y%m%d')
         if search_data(current_date_str):
-            download_data(current_date_str)
+            download_data(current_date_str, download_folder)
         current_date += datetime.timedelta(days=1)
+
+    app.quit()
 
 if __name__ == '__main__':
     if len(sys.argv) < 2 or len(sys.argv) > 3:
